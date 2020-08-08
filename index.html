@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegra.ph Client</title>
+</head>
+<body>
+  <div x-data="app()" x-init="main()">
+    <h1>Telegra.ph Client</h1>
+    <template x-if="account.author_url != ''">
+      <div style="display: inline;">
+        <a :href="account.author_url" x-text="account.author_name"></a>
+        <a :href="account.auth_url" target="_blank">Login</a>
+      </div>
+      <hr>
+    </template>
+
+    <template x-if="pages.length >= 1">
+      <h2>Posts</h2>
+      <ul>
+        <template x-for="page in pages">
+          <li><a :href="page.url" x-text="page.title" target="_blank"></a></li>
+        </template>
+        <template x-if="!max">
+          <li><a href="#more" @click.prevent="getPageList(pages.length)">Load More</a></li>
+        </template>
+        </ul>
+      </template>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/gh/alpinejs/alpine@v2.5.0/dist/alpine.min.js" defer></script>
+  <script>
+    const app = ()=>{
+      return {
+        token: window.localStorage.tgph_token || window.location.search.replace('?', ''),
+        baseUrl: 'https://api.telegra.ph',
+        account: {
+          short_name: '',
+          author_name: '',
+          author_url: '',
+          auth_url: ''
+        },
+        pages: [],
+        max: false,
+        main() {
+          if (window.location.search) {
+            window.localStorage.tgph_token = window.location.search.replace('?', '')
+            this.token = window.localStorage.tgph_token
+          }
+
+          this.getAccountInfo().then(res => {
+            if(!res) {
+              alert('Invalid Token!')
+            } else {
+              this.getPageList()
+            }
+          })
+        },
+        async getAccountInfo() {
+          const res = await fetch(`${this.baseUrl}/getAccountInfo?access_token=${this.token}&fields=${encodeURIComponent('["auth_url", "short_name","author_name","author_url"]')}`)
+          const json = await res.json()
+          if (json.ok) {
+            this.account = json.result
+          }
+          return json.ok
+        },
+        getPageList(offset=0, limit=50) {
+          fetch(`${this.baseUrl}/getPageList?access_token=${this.token}&offset=${offset}&limit=${limit}`)
+          .then(res => res.json())
+          .then(json => {
+            if (json.ok) {
+              const {pages, total_count} = json.result
+              this.pages.push(...pages)
+              if(this.pages.length >= total_count) {
+                this.max = true
+              }
+            }
+          })
+        }
+      }
+    }
+  </script>
+</body>
+</html>
